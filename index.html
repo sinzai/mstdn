@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastodon Instance Analyzer</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6364ff">
+    
+    <link rel="icon" type="image/png" href="image/icon.png">
+    <link rel="apple-touch-icon" href="image/icon.png">
+    
+    <style>
+        :root {
+            --primary: #6364ff;
+            --accent: #ffa500;
+            --bg: #1f232b;
+            --card-bg: #282c37;
+            --text: #ffffff;
+            --text-dim: #9baec8;
+            --border: #393f4f;
+        }
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .search-area {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        input {
+            width: 60%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #121419;
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+        }
+        input:focus { border-color: var(--primary); }
+        button {
+            padding: 12px 25px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.8; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .banner {
+            width: calc(100% + 40px);
+            height: 200px;
+            object-fit: cover;
+            margin: -20px -20px 15px -20px;
+            background: #121419;
+        }
+        h2 { color: var(--primary); border-left: 4px solid var(--primary); padding-left: 10px; font-size: 1.2rem; margin-top: 0; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.9rem; }
+        th { color: var(--text-dim); width: 40%; font-weight: normal; }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin: 3px;
+            background: #444;
+            font-weight: bold;
+        }
+        .badge.true { background: #2d5a27; color: #adffaa; }
+        .badge.false { background: #5a2727; color: #ffaaaa; }
+
+        .rules-list { padding-left: 20px; font-size: 0.9rem; color: var(--text-dim); }
+        .rules-list li { margin-bottom: 8px; }
+
+        .link-button {
+            display: inline-block;
+            margin-top: 10px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            border: 1px solid var(--primary);
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .link-button:hover { background: var(--primary); color: white; }
+
+        pre { background: #121419; padding: 15px; overflow-x: auto; border-radius: 8px; font-size: 0.8rem; color: #00ff00; }
+        .hidden { display: none; }
+        #error { color: #ff5f5f; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-area">
+        <h1>Mastodon Instance Analyzer</h1>
+        <input type="text" id="instanceUrl" placeholder="mastodon.social" value="mastodon.social" onkeydown="if(event.key==='Enter') fetchMastodonData()">
+        <button onclick="fetchMastodonData()">解析開始</button>
+        <div id="error"></div>
+    </div>
+
+    <div id="loader" class="hidden" style="text-align:center; padding: 40px;">
+        <p>📡 APIからデータを取得中...</p>
+    </div>
+
+    <div id="content" class="hidden">
+        <div class="card">
+            <img id="banner" class="banner" src="" alt="Instance Banner">
+            <div style="display:flex; align-items:center; gap:20px;">
+                <div id="title-area">
+                    <h1 id="name" style="margin:0"></h1>
+                    <p id="description" style="font-size:0.95rem; opacity:0.9; margin-top:10px; white-space: pre-wrap;"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>運営者情報</h2>
+                <table>
+                    <tbody id="info-table"></tbody>
+                </table>
+                <div id="legal-links"></div>
+            </div>
+
+            <div class="card">
+                <h2>統計 (Stats)</h2>
+                <table>
+                    <tbody id="stats-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>投稿・メディア設定</h2>
+                <table>
+                    <tbody id="config-table"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>サーバーのルール</h2>
+                <ul id="rules-list" class="rules-list"></ul>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Raw API Response (V2 JSON)</h2>
+            <pre id="raw-json"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+async function fetchMastodonData() {
+    const host = document.getElementById('instanceUrl').value.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const content = document.getElementById('content');
+    const loader = document.getElementById('loader');
+    const error = document.getElementById('error');
+
+    if (!host) return;
+
+    loader.classList.remove('hidden');
+    content.classList.add('hidden');
+    error.innerText = '';
+
+    try {
+        const response = await fetch(`https://${host}/api/v2/instance`);
+        if (!response.ok) throw new Error('取得に失敗しました。');
+        
+        const data = await response.json();
+
+        document.getElementById('banner').src = data.thumbnail?.url || '';
+        document.getElementById('name').innerText = data.title || host;
+        document.getElementById('description').innerText = data.description || '';
+
+        const createRow = (label, value) => `<tr><th>${label}</th><td>${value ?? '不明'}</td></tr>`;
+
+        document.getElementById('info-table').innerHTML = 
+            createRow('ドメイン', data.domain) +
+            createRow('バージョン', data.version) +
+            createRow('管理者', data.contact?.account?.username ? `@${data.contact.account.username}` : '未設定') +
+            createRow('メール', data.contact?.email) +
+            createRow('新規登録', data.registrations?.enabled ? '<span class="badge true">✅ 開放中</span>' : '<span class="badge false">❌ 停止中</span>');
+
+        document.getElementById('legal-links').innerHTML = `
+            <a href="https://${host}/terms" target="_blank" class="link-button">⚖️ 利用規約</a>
+            <a href="https://${host}/privacy-policy" target="_blank" class="link-button">🔒 プライバシーポリシー</a>
+        `;
+
+        document.getElementById('stats-table').innerHTML = 
+            createRow('ユーザー数', (data.usage?.users?.total_users ?? 0).toLocaleString() + ' 人') +
+            createRow('アクティブ', (data.usage?.users?.active_month ?? 0).toLocaleString() + ' 人') +
+            createRow('ソースコード', `<a href="${data.source_url}" target="_blank" style="color:var(--primary)">GitHub</a>`);
+
+        const conf = data.configuration || {};
+        const imageLimit = conf.media_attachments?.image_size_limit ? (conf.media_attachments.image_size_limit / 1024 / 1024).toFixed(1) : '8.0';
+        const videoLimit = conf.media_attachments?.video_size_limit ? (conf.media_attachments.video_size_limit / 1024 / 1024).toFixed(1) : '40.0';
+
+        document.getElementById('config-table').innerHTML = 
+            createRow('最大文字数', (conf.statuses?.max_characters || 500) + ' 文字') +
+            createRow('メディア上限', (conf.statuses?.max_media_attachments || 4) + ' 枚') +
+            createRow('画像容量制限', imageLimit + ' MB') +
+            createRow('動画容量制限', videoLimit + ' MB');
+
+        const rulesList = document.getElementById('rules-list');
+        rulesList.innerHTML = '';
+        if (data.rules?.length > 0) {
+            data.rules.forEach(rule => {
+                const li = document.createElement('li');
+                li.innerText = rule.text;
+                rulesList.appendChild(li);
+            });
+        } else {
+            rulesList.innerHTML = '<li>設定されていません</li>';
+        }
+
+        document.getElementById('raw-json').innerText = JSON.stringify(data, null, 2);
+        loader.classList.add('hidden');
+        content.classList.remove('hidden');
+
+    } catch (err) {
+        loader.classList.add('hidden');
+        error.innerText = 'エラー: ' + err.message;
+    }
+}
+
+// Service Worker の登録
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Registration Failed', err));
+    });
+}
+</script>
+
+</body>
+</html>

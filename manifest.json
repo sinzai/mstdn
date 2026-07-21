@@ -1,0 +1,23 @@
+{
+  "name": "Mastodon Instance Analyzer",
+  "short_name": "MastoScan",
+  "description": "Mastodonインスタンスの詳細情報を解析・表示します",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1f232b",
+  "theme_color": "#6364ff",
+  "icons": [
+    {
+      "src": "image/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "image/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
